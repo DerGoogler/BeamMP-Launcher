@@ -287,8 +287,8 @@ void EnableMP() {
             // error("Failed to parse " + File); //TODO illegal formatting
             return;
         }
-        if (d.contains("mods") && d["mods"].contains("multiplayerbeammp")) {
-            d["mods"]["multiplayerbeammp"]["active"] = true;
+        if (d.contains("mods") && d["mods"].contains("unpackedbeammp")) {
+            d["mods"]["unpackedbeammp"]["active"] = true;
             std::ofstream ofs(File);
             if (ofs.is_open()) {
                 ofs << d.dump();
@@ -318,7 +318,6 @@ void PreGame(const std::string& GamePath) {
             if (!fs::exists(GetGamePath() + "mods/multiplayer")) {
                 fs::create_directories(GetGamePath() + "mods/multiplayer");
             }
-            EnableMP();
         } catch (std::exception& e) {
             fatal(e.what());
         }
@@ -347,7 +346,7 @@ void PreGame(const std::string& GamePath) {
 
         if (UnpackZip(ZipPath, Target)) {
             info("Unpacked BeamMP");
-            if (fs::is_directory(ZipPath)) {
+            if (fs::exists(ZipPath)) {
                 fs::remove_all(ZipPath);
             }
 
@@ -355,6 +354,7 @@ void PreGame(const std::string& GamePath) {
             std::string replacher = R"(jsonReadFile("mods/beammp.whitelist.json"))";
             ReplaceTextInFile(FileToPatch, searcher, replacher);
             info("BeamMP Patched!");
+            EnableMP();
         } else {
             error("Failed to unpack BeamMP");
         }
