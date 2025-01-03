@@ -21,6 +21,7 @@
 #include "Network/network.hpp"
 #include "Security/Init.h"
 #include "Startup.h"
+#include "Mod.h"
 #include "hashpp.h"
 #include <filesystem>
 #include <fstream>
@@ -230,19 +231,19 @@ void LinuxPatch() {
 #if defined(_WIN32)
 
 void InitLauncher() {
-    SetConsoleTitleA(("BeamMP Launcher v" + std::string(GetVer()) + GetPatch()).c_str());
+    SetConsoleTitleA(("Unofficial BeamMP Launcher v" + std::string(GetVer()) + GetPatch()).c_str());
     CheckName();
     LinuxPatch();
     CheckLocalKey();
-    CheckForUpdates(std::string(GetVer()) + GetPatch());
+    // CheckForUpdates(std::string(GetVer()) + GetPatch());
 }
 #elif defined(__linux__)
 
 void InitLauncher() {
-    info("BeamMP Launcher v" + GetVer() + GetPatch());
+    info("Unofficial BeamMP Launcher v" + GetVer() + GetPatch());
     CheckName();
     CheckLocalKey();
-    CheckForUpdates(std::string(GetVer()) + GetPatch());
+    // CheckForUpdates(std::string(GetVer()) + GetPatch());
 }
 #endif
 
@@ -323,9 +324,13 @@ void PreGame(const std::string& GamePath) {
         }
 #if defined(_WIN32)
         std::string ZipPath(GetGamePath() + R"(mods\multiplayer\BeamMP.zip)");
+        std::string Target(GetGamePath() + R"(mods\unpacked\BeamMP)");
+        std::string FileToPatch(Target + R"(\lua\ge\extensions\MPModManager.lua)");
 #elif defined(__linux__)
         // Linux version of the game cant handle mods with uppercase names
         std::string ZipPath(GetGamePath() + R"(mods/multiplayer/beammp.zip)");
+        std::string Target(GetGamePath() + R"(mods/unpacked/beammp)");
+        std::string FileToPatch(Target + R"(/lua/ge/extensions/MPModManager.lua)");
 #endif
 
         std::string FileHash = hashpp::get::getFileHash(hashpp::ALGORITHMS::SHA2_256, ZipPath);
@@ -338,10 +343,20 @@ void PreGame(const std::string& GamePath) {
                 ZipPath);
         }
 
-        std::string Target(GetGamePath() + "mods/unpacked/beammp");
 
-        if (fs::is_directory(Target)) {
-            fs::remove_all(Target);
+
+        if (UnpackZip(ZipPath, Target)) {
+            info("Unpacked BeamMP");
+            if (fs::is_directory(ZipPath)) {
+                fs::remove_all(ZipPath);
+            }
+
+            std::string searcher = R"({"multiplayerbeammp", "beammp", "translations"})";
+            std::string replacher = R"(jsonReadFile("mods/beammp.whitelist.json"))";
+            ReplaceTextInFile(FileToPatch, searcher, replacher);
+            info("BeamMP Patched!");
+        } else {
+            error("Failed to unpack BeamMP");
         }
     }
 }

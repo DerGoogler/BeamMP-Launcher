@@ -10,6 +10,9 @@ endif(WIN32)
 
 set(CMAKE_CXX_STANDARD 20)
 
+#set(CMAKE_PREFIX_PATH "bin/vcpkg_installed/x64-windows")
+set(libzip_DIR "bin/vcpkg_installed/x64-windows-static/share/libzip")
+
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 
 add_compile_definitions(CPPHTTPLIB_OPENSSL_SUPPORT)
@@ -24,14 +27,15 @@ set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "BeamMP-Launcher")
 
 if (WIN32)
     find_package(ZLIB REQUIRED)
+    find_package(libzip REQUIRED)
     find_package(OpenSSL REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE
-            ZLIB::ZLIB OpenSSL::SSL OpenSSL::Crypto ws2_32 httplib::httplib nlohmann_json::nlohmann_json CURL::libcurl)
+            ZLIB::ZLIB OpenSSL::SSL OpenSSL::Crypto ws2_32 httplib::httplib nlohmann_json::nlohmann_json CURL::libcurl libzip::zip)
 elseif (UNIX)
     find_package(ZLIB REQUIRED)
     find_package(OpenSSL REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE
-            ZLIB::ZLIB OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
+            ZLIB::ZLIB OpenSSL::SSL OpenSSL::Crypto CURL::libcurl LIBZIP::LIBZIP)
 else(WIN32) #MINGW
     add_definitions("-D_WIN32_WINNT=0x0600")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Os -s --static")

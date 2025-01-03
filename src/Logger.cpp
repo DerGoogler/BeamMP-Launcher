@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
+#include <regex>
 #include "Options.h"
 
 std::string getDate() {
@@ -44,41 +45,43 @@ void InitLog() {
 }
 void addToLog(const std::string& Line) {
     std::ofstream LFS;
+    std::regex ansi_escape_regex("\x1B\\[[0-9;]*[a-zA-Z]");
+    std::string clean_message = std::regex_replace(Line.c_str(), ansi_escape_regex, "");
     LFS.open(GetEP() + "Launcher.log", std::ios_base::app);
-    LFS << Line.c_str();
+    LFS << clean_message.c_str();
     LFS.close();
 }
 void info(const std::string& toPrint) {
-    std::string Print = getDate() + "[INFO] " + toPrint + "\n";
+    std::string Print = getDate() + "\x1b[37;44m[INFO]\x1b[0m " + toPrint + "\n";
     std::cout << Print;
     addToLog(Print);
 }
 void debug(const std::string& toPrint) {
-    std::string Print = getDate() + "[DEBUG] " + toPrint + "\n";
-    if (options.verbose) {
-        std::cout << Print;
-    }
+    if (!options.verbose)
+        return;
+    std::string Print = getDate() + "\x1b[30;47m[DEBUG]\x1b[0m " + toPrint + "\n";
+    std::cout << Print;
     addToLog(Print);
 }
 void warn(const std::string& toPrint) {
-    std::string Print = getDate() + "[WARN] " + toPrint + "\n";
+    std::string Print = getDate() + "\x1b[30;43m[WARN]\x1b[0m " + toPrint + "\n";
     std::cout << Print;
     addToLog(Print);
 }
 void error(const std::string& toPrint) {
-    std::string Print = getDate() + "[ERROR] " + toPrint + "\n";
+    std::string Print = getDate() + "\x1b[37;41m[ERROR]\x1b[0m " + toPrint + "\n";
     std::cout << Print;
     addToLog(Print);
 }
 void fatal(const std::string& toPrint) {
-    std::string Print = getDate() + "[FATAL] " + toPrint + "\n";
+    std::string Print = getDate() + "\x1b[30;41;1;4m[FATAL]\x1b[0m " + toPrint + "\n";
     std::cout << Print;
     addToLog(Print);
     std::this_thread::sleep_for(std::chrono::seconds(5));
-    std::exit(1);
+    _Exit(-1);
 }
 void except(const std::string& toPrint) {
-    std::string Print = getDate() + "[EXCEP] " + toPrint + "\n";
+    std::string Print = getDate() + "\x1b[37;45m[EXCEP]\x1b[0m " + toPrint + "\n";
     std::cout << Print;
     addToLog(Print);
 }
