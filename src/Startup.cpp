@@ -82,10 +82,10 @@ std::string GetEN() {
 }
 
 std::string GetVer() {
-    return "2.3";
+    return "2.4";
 }
 std::string GetPatch() {
-    return ".2";
+    return ".0";
 }
 
 std::string GetEP(const char* P) {
@@ -176,7 +176,7 @@ void CheckForUpdates(const std::string& CV) {
 
     if (FileHash != LatestHash && IsOutdated(Version(VersionStrToInts(GetVer() + GetPatch())), Version(VersionStrToInts(LatestVersion)))) {
         if (!options.no_update) {
-            info("Launcher update found!");
+            info("Launcher update " + LatestVersion + " found!");
 #if defined(__linux__)
             error("Auto update is NOT implemented for the Linux version. Please update manually ASAP as updates contain security patches.");
 #else
@@ -194,7 +194,7 @@ void CheckForUpdates(const std::string& CV) {
             warn("Launcher update was found, but not updating because --no-update or --dev was specified.");
         }
     } else
-        info("Launcher version is up to date");
+        info("Launcher version is up to date. Latest version: " + LatestVersion);
     TraceBack++;
 }
 
@@ -232,6 +232,7 @@ void LinuxPatch() {
 
 void InitLauncher() {
     SetConsoleTitleA(("Unofficial BeamMP Launcher v" + std::string(GetVer()) + GetPatch()).c_str());
+    debug("Launcher Version : " + GetVer() + GetPatch());
     CheckName();
     LinuxPatch();
     CheckLocalKey();
