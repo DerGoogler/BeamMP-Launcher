@@ -4,6 +4,7 @@
     "nlohmann-json",
     "zlib",
     "openssl",
-    "curl"
+    "curl",
+    "libzip"
   ]
 }
