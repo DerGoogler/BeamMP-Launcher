@@ -164,9 +164,12 @@ std::vector<char> TCPRcvRaw(SOCKET Sock, uint64_t& GRcv, uint64_t Size) {
     do {
         // receive at most some MB at a time
         int Len = std::min(int(Size - Rcv), 1 * 1024 * 1024);
-        int32_t Temp = recv(Sock, &File[Rcv], Len, MSG_WAITALL);
-        if (Temp < 1) {
-            info(std::to_string(Temp));
+        int Temp = recv(Sock, &File[Rcv], Len, MSG_WAITALL);
+        if (Temp == -1 || Temp == 0) {
+            debug("Recv returned: " + std::to_string(Temp));
+            if (Temp == -1) {
+                error("Socket error during download: " + std::to_string(WSAGetLastError()));
+            }
             UUl("Socket Closed Code 1");
             KillSocket(Sock);
             Terminate = true;
@@ -177,8 +180,8 @@ std::vector<char> TCPRcvRaw(SOCKET Sock, uint64_t& GRcv, uint64_t Size) {
 
         auto end = std::chrono::high_resolution_clock::now();
         auto difference = end - start;
-        float bits_per_s = float(Rcv * 8) / float(std::chrono::duration_cast<std::chrono::milliseconds>(difference).count());
-        float megabits_per_s = bits_per_s / 1000;
+        double bits_per_s = double(Rcv * 8) / double(std::chrono::duration_cast<std::chrono::milliseconds>(difference).count());
+        double megabits_per_s = bits_per_s / 1000;
         DownloadSpeed = megabits_per_s;
         // every 8th iteration print the speed
         if (i % 8 == 0) {
@@ -377,6 +380,11 @@ struct ModInfo {
                     .Hash = entry["hash"],
                     .HashAlgorithm = entry["hash_algorithm"],
                 };
+
+                if (entry.contains("protected")) {
+                    modInfo.Protected = entry["protected"];
+                }
+
                 modInfos.push_back(modInfo);
                 success = true;
             }
@@ -390,6 +398,7 @@ struct ModInfo {
     size_t FileSize;
     std::string Hash;
     std::string HashAlgorithm;
+    bool Protected = false;
 };
 
 nlohmann::json modUsage = {};
@@ -541,6 +550,16 @@ void NewSyncResources(SOCKET Sock, const std::string& Mods, const std::vector<Mo
             WaitForConfirm();
             continue;
         }
+
+        if (ModInfoIter->Protected && false) {
+            std::string message = "Mod '" + ModInfoIter->FileName + "' is protected and therefore must be placed in the Resources/Caching folder manually here: " + fs::absolute(CachingDirectory).string();
+
+            error(message);
+            UUl(message);
+            Terminate = true;
+            return;
+        }
+
         CheckForDir();
         std::string FName = ModInfoIter->FileName;
         do {
@@ -551,6 +570,13 @@ void NewSyncResources(SOCKET Sock, const std::string& Mods, const std::vector<Mo
             if (Data == "CO" || Terminate) {
                 Terminate = true;
                 UUl("Server cannot find " + FName);
+                break;
+            }
+
+            if (Data != "AG") {
+                UUl("Received corrupted download confirmation, aborting download.");
+                debug("Corrupted download confirmation: " + Data);
+                Terminate = true;
                 break;
             }
 
@@ -568,9 +594,14 @@ void NewSyncResources(SOCKET Sock, const std::string& Mods, const std::vector<Mo
                 OutFile.write(DownloadedFile.data(), DownloadedFile.size());
                 OutFile.flush();
             }
-            // 2. verify size
+            // 2. verify size and hash
             if (std::filesystem::file_size(PathToSaveTo) != DownloadedFile.size()) {
                 error("Failed to write the entire file '" + PathToSaveTo + "' correctly (file size mismatch)");
+                Terminate = true;
+            }
+
+            if (GetSha256HashReallyFast(PathToSaveTo) != ModInfoIter->Hash) {
+                error("Failed to write or download the entire file '" + PathToSaveTo + "' correctly (hash mismatch)");
                 Terminate = true;
             }
         } while (fs::file_size(PathToSaveTo) != ModInfoIter->FileSize && !Terminate);

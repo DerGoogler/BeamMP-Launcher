@@ -141,7 +141,7 @@ void GetServerInfo(std::string Data) {
     const std::string buffer = ([&]() -> std::string {
         int32_t Header;
         std::vector<char> data(sizeof(Header));
-        int32_t Temp = recv(ISock, data.data(), sizeof(Header), MSG_WAITALL);
+        int Temp = recv(ISock, data.data(), sizeof(Header), MSG_WAITALL);
 
         auto checkBytes = ([&](const int32_t bytes) -> bool {
             if (bytes == 0) {
@@ -200,7 +200,17 @@ bool IsAllowedLink(const std::string& Link) {
     return std::regex_search(Link, link_match, link_pattern) && link_match.position() == 0;
 }
 
+std::vector<std::future<void>> futures;
+
 void Parse(std::string Data, SOCKET CSocket) {
+    std::erase_if(futures, [](const std::future<void>& f) {
+        if (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            return true;
+        }
+        return false;
+    });
+
+
     char Code = Data.at(0), SubCode = 0;
     if (Data.length() > 1)
         SubCode = Data.at(1);
@@ -213,9 +223,9 @@ void Parse(std::string Data, SOCKET CSocket) {
             Terminate = true;
             TCPTerminate = true;
             Data.clear();
-            auto future = std::async(std::launch::async, []() {
+            futures.push_back(std::async(std::launch::async, []() {
                 CoreSend("B" + HTTP::Get("https://backend.beammp.com/servers-info"));
-            });
+            }));
         }
         break;
     case 'C':
@@ -312,9 +322,9 @@ void Parse(std::string Data, SOCKET CSocket) {
             }
             Data = "N" + Auth.dump();
         } else {
-            auto future = std::async(std::launch::async, [data = std::move(Data)]() {
+            futures.push_back(std::async(std::launch::async, [data = std::move(Data)]() {
                 CoreSend("N" + Login(data.substr(data.find(':') + 1)));
-            });
+            }));
             Data.clear();
         }
         break;
@@ -342,7 +352,8 @@ void Parse(std::string Data, SOCKET CSocket) {
 }
 void GameHandler(SOCKET Client) {
     CoreSocket = Client;
-    int32_t Size, Temp, Rcv;
+    int32_t Size, Rcv;
+    int Temp;
     char Header[10] = { 0 };
     do {
         Rcv = 0;
